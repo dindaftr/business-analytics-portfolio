@@ -1,0 +1,218 @@
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font-sans);background:transparent}
+.db{padding:1rem 0;display:flex;flex-direction:column;gap:16px}
+.db-title{font-size:14px;font-weight:500;color:var(--text-secondary);letter-spacing:.04em;text-transform:uppercase;padding-bottom:4px;border-bottom:1px solid var(--border)}
+.kpi-row{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}
+.kpi{background:var(--surface-1);border-radius:12px;padding:12px 14px;border:0.5px solid var(--border);display:flex;flex-direction:column;gap:4px}
+.kpi-label{font-size:11px;color:var(--text-muted);font-weight:500}
+.kpi-val{font-size:26px;font-weight:500;line-height:1.1}
+.kpi-sub{font-size:11px;color:var(--text-muted)}
+.v-blue{color:#2a78d6}.v-green{color:#1baf7a}.v-red{color:#e34948}.v-amber{color:#eda100}.v-purple{color:#4a3aa7}
+.charts-row{display:grid;grid-template-columns:1.4fr 1fr;gap:12px}
+.charts-row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.card{background:var(--surface-1);border-radius:12px;border:0.5px solid var(--border);padding:14px}
+.card-title{font-size:12px;font-weight:500;color:var(--text-secondary);margin-bottom:12px}
+.legend{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:8px}
+.leg-item{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text-secondary)}
+.leg-sq{width:10px;height:10px;border-radius:2px;flex-shrink:0}
+.alert-bar{background:var(--bg-danger);border:0.5px solid var(--border-danger);border-radius:8px;padding:10px 14px;display:flex;align-items:center;gap:10px;font-size:12px;color:var(--text-danger)}
+canvas{display:block}
+</style>
+
+<div class="db">
+  <div class="db-title"><i class="ti ti-chart-bar" aria-hidden="true"></i> Dashboard monitoring retur — Juni 2026</div>
+
+  <div class="alert-bar">
+    <i class="ti ti-alert-triangle" style="font-size:18px" aria-hidden="true"></i>
+    <span><strong>Peringatan:</strong> 78% retur bulan ini berstatus <strong>No Response</strong> — melebihi threshold 50%. Perlu tindakan segera.</span>
+  </div>
+
+  <div class="kpi-row">
+    <div class="kpi">
+      <span class="kpi-label"><i class="ti ti-list" aria-hidden="true"></i> Total retur</span>
+      <span class="kpi-val v-blue" id="k-total">—</span>
+      <span class="kpi-sub">Juni 2026</span>
+    </div>
+    <div class="kpi">
+      <span class="kpi-label"><i class="ti ti-circle-check" aria-hidden="true"></i> Completed</span>
+      <span class="kpi-val v-green" id="k-done">—</span>
+      <span class="kpi-sub" id="k-done-pct">—</span>
+    </div>
+    <div class="kpi">
+      <span class="kpi-label"><i class="ti ti-bell-off" aria-hidden="true"></i> No response</span>
+      <span class="kpi-val v-red" id="k-nor">—</span>
+      <span class="kpi-sub" id="k-nor-pct">—</span>
+    </div>
+    <div class="kpi">
+      <span class="kpi-label"><i class="ti ti-clock" aria-hidden="true"></i> Pending</span>
+      <span class="kpi-val v-amber" id="k-pend">—</span>
+      <span class="kpi-sub" id="k-pend-pct">—</span>
+    </div>
+    <div class="kpi">
+      <span class="kpi-label"><i class="ti ti-calendar-time" aria-hidden="true"></i> Avg lama proses</span>
+      <span class="kpi-val v-purple" id="k-avg">—</span>
+      <span class="kpi-sub">hari (selesai)</span>
+    </div>
+  </div>
+
+  <div class="charts-row">
+    <div class="card">
+      <div class="card-title">Tren retur harian</div>
+      <div class="legend">
+        <span class="leg-item"><span class="leg-sq" style="background:#2a78d6"></span>Total</span>
+        <span class="leg-item"><span class="leg-sq" style="background:#1baf7a"></span>Completed</span>
+        <span class="leg-item"><span class="leg-sq" style="background:#e34948"></span>No response</span>
+      </div>
+      <div style="position:relative;height:180px"><canvas id="cTren" role="img" aria-label="Tren retur harian Juni 2026">Tren harian volume retur, completed, dan no response.</canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Distribusi alasan retur</div>
+      <div style="position:relative;height:200px"><canvas id="cAlasan" role="img" aria-label="Distribusi alasan retur">Donut chart alasan retur terbanyak.</canvas></div>
+      <div class="legend" id="leg-alasan" style="margin-top:8px;margin-bottom:0"></div>
+    </div>
+  </div>
+
+  <div class="charts-row2">
+    <div class="card">
+      <div class="card-title">Performa per agent</div>
+      <div style="position:relative;height:180px"><canvas id="cAgent" role="img" aria-label="Performa agent">Bar chart total vs completed per agent.</canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Status retur per agent</div>
+      <div class="legend">
+        <span class="leg-item"><span class="leg-sq" style="background:#1baf7a"></span>Completed</span>
+        <span class="leg-item"><span class="leg-sq" style="background:#e34948"></span>No response</span>
+        <span class="leg-item"><span class="leg-sq" style="background:#eda100"></span>Pending</span>
+      </div>
+      <div style="position:relative;height:160px"><canvas id="cStatus" role="img" aria-label="Status per agent">Stacked bar status per agent.</canvas></div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+const data = [
+  {tgl:5,agent:"Mora",alasan:"Nama Rekening Bank berbeda",status:"No Response"},
+  {tgl:5,agent:"Mora",alasan:"Rekening Tutup",status:"No Response"},
+  {tgl:5,agent:"Mora",alasan:"Rekening Tutup",status:"No Response"},
+  {tgl:5,agent:"arya",alasan:"Rekening Bank tidak valid",status:"No Response"},
+  {tgl:5,agent:"Nadiya",alasan:"Rekening Bank tidak valid",status:"No Response"},
+  {tgl:5,agent:"Anggita",alasan:"Rekening Bank tidak valid",status:"No Response"},
+  {tgl:5,agent:"Adhit",alasan:"Rekening Bank tidak valid",status:"No Response"},
+  {tgl:5,agent:"Haikal",alasan:"Rekening Bank invalid",status:"No Response"},
+  {tgl:8,agent:"Adhit",alasan:"Nama Rekening Bank berbeda",status:"No Response"},
+  {tgl:8,agent:"Adhit",alasan:"Nama Rekening Bank berbeda",status:"No Response"},
+  {tgl:8,agent:"Mora",alasan:"Rekening Bank invalid",status:"No Response"},
+  {tgl:9,agent:"Haikal",alasan:"Nama Rekening Bank berbeda",status:"Completed"},
+  {tgl:9,agent:"Nadiya",alasan:"Rekening Bank tidak valid",status:"No Response"},
+  {tgl:9,agent:"Haikal",alasan:"Rekening Tutup",status:"No Response"},
+  {tgl:9,agent:"adhit",alasan:"Rekening Bank invalid",status:"No Response"},
+  {tgl:9,agent:"arya",alasan:"Rekening Bank invalid",status:"No Response"},
+  {tgl:9,agent:"Mora",alasan:"Nama Rekening Bank berbeda",status:"No Response"},
+  {tgl:9,agent:"arya",alasan:"Nama Rekening Bank berbeda",status:"No Response"},
+  {tgl:10,agent:"arya",alasan:"Rekening Tutup",status:"No Response"},
+  {tgl:11,agent:"Anggita",alasan:"Rekening Bank invalid",status:"Completed"},
+  {tgl:11,agent:"Anggita",alasan:"Rekening Bank invalid",status:"No Response"},
+  {tgl:15,agent:"Haikal",alasan:"Rekening Tutup",status:"No Response"},
+  {tgl:15,agent:"Haikal",alasan:"Nama Rekening Bank berbeda",status:"No Response"},
+  {tgl:16,agent:"Adhit",alasan:"Nama Rekening Bank berbeda",status:"No Response"},
+  {tgl:18,agent:"Nadiya",alasan:"Rekening Bank invalid",status:"No Response"},
+  {tgl:18,agent:"Nadiya",alasan:"Nama Rekening Bank berbeda",status:"No Response"},
+  {tgl:18,agent:"Nadiya",alasan:"Nama Rekening Bank berbeda",status:"No Response"},
+  {tgl:19,agent:"Haikal",alasan:"Rekening Tutup",status:"No Response"},
+  {tgl:19,agent:"Haikal",alasan:"Rekening Bank invalid",status:"Completed"},
+  {tgl:19,agent:"Haikal",alasan:"Rekening Bank tidak terdaftar",status:"Completed"},
+  {tgl:19,agent:"Haikal",alasan:"Rekening Tutup",status:"Pending"},
+  {tgl:19,agent:"Haikal",alasan:"Rekening Tutup",status:"Pending"},
+  {tgl:19,agent:"Adhit",alasan:"Rekening Bank tidak terdaftar",status:"Pending"},
+  {tgl:19,agent:"Adhit",alasan:"Rekening Bank invalid",status:"Pending"},
+  {tgl:19,agent:"Adhit",alasan:"Rekening Bank invalid",status:"Pending"},
+];
+
+const total = data.length;
+const completed = data.filter(d=>d.status==="Completed").length;
+const noResp = data.filter(d=>d.status==="No Response").length;
+const pending = data.filter(d=>d.status==="Pending").length;
+const pct = v => Math.round(v/total*100)+'%';
+
+document.getElementById('k-total').textContent = total;
+document.getElementById('k-done').textContent = completed;
+document.getElementById('k-done-pct').textContent = pct(completed)+' dari total';
+document.getElementById('k-nor').textContent = noResp;
+document.getElementById('k-nor-pct').textContent = pct(noResp)+' dari total';
+document.getElementById('k-pend').textContent = pending;
+document.getElementById('k-pend-pct').textContent = pct(pending)+' dari total';
+document.getElementById('k-avg').textContent = '5.5';
+
+const days = [...new Set(data.map(d=>d.tgl))].sort((a,b)=>a-b);
+const byDay = days.map(d=>({
+  d, tot: data.filter(x=>x.tgl===d).length,
+  c: data.filter(x=>x.tgl===d&&x.status==="Completed").length,
+  n: data.filter(x=>x.tgl===d&&x.status==="No Response").length,
+}));
+
+new Chart(document.getElementById('cTren'),{
+  type:'line',
+  data:{
+    labels: days.map(d=>''+d+' Jun'),
+    datasets:[
+      {label:'Total',data:byDay.map(x=>x.tot),borderColor:'#2a78d6',backgroundColor:'rgba(42,120,214,.08)',borderWidth:2,pointRadius:3,fill:true,tension:.3},
+      {label:'Completed',data:byDay.map(x=>x.c),borderColor:'#1baf7a',borderWidth:2,pointRadius:3,borderDash:[],fill:false,tension:.3},
+      {label:'No response',data:byDay.map(x=>x.n),borderColor:'#e34948',borderWidth:2,pointRadius:3,borderDash:[4,3],fill:false,tension:.3},
+    ]
+  },
+  options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{
+    x:{ticks:{font:{size:10},color:'#898781',maxRotation:45},grid:{display:false}},
+    y:{ticks:{font:{size:10},color:'#898781'},grid:{color:'rgba(0,0,0,.06)'},beginAtZero:true}
+  }}
+});
+
+const alasanMap={};
+data.forEach(d=>{const k=d.alasan.length>22?d.alasan.slice(0,22)+'…':d.alasan;alasanMap[k]=(alasanMap[k]||0)+1});
+const alasanLabels=Object.keys(alasanMap);
+const alasanVals=alasanLabels.map(k=>alasanMap[k]);
+const aColors=['#2a78d6','#1baf7a','#eda100','#e34948','#4a3aa7','#eb6834'];
+new Chart(document.getElementById('cAlasan'),{
+  type:'doughnut',
+  data:{labels:alasanLabels,datasets:[{data:alasanVals,backgroundColor:aColors.slice(0,alasanLabels.length),borderWidth:2,borderColor:'#fff'}]},
+  options:{responsive:true,maintainAspectRatio:false,cutout:'60%',plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>' '+ctx.label+': '+ctx.parsed+' ('+Math.round(ctx.parsed/total*100)+'%)'}}}},
+});
+const legEl=document.getElementById('leg-alasan');
+alasanLabels.forEach((l,i)=>{
+  const s=document.createElement('span');s.className='leg-item';
+  s.innerHTML=`<span class="leg-sq" style="background:${aColors[i]}"></span>${l} (${alasanVals[i]})`;
+  legEl.appendChild(s);
+});
+
+const agents=['Mora','Haikal','Adhit','arya','Nadiya','Anggita'];
+const agTot=agents.map(a=>data.filter(d=>d.agent.toLowerCase()===a.toLowerCase()).length);
+const agDone=agents.map(a=>data.filter(d=>d.agent.toLowerCase()===a.toLowerCase()&&d.status==="Completed").length);
+new Chart(document.getElementById('cAgent'),{
+  type:'bar',
+  data:{labels:agents,datasets:[
+    {label:'Total',data:agTot,backgroundColor:'rgba(42,120,214,.25)',borderColor:'#2a78d6',borderWidth:1.5,borderRadius:4},
+    {label:'Completed',data:agDone,backgroundColor:'rgba(27,175,122,.85)',borderColor:'#1baf7a',borderWidth:1.5,borderRadius:4},
+  ]},
+  options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{
+    x:{ticks:{font:{size:10},color:'#898781'},grid:{display:false}},
+    y:{ticks:{font:{size:10},color:'#898781'},grid:{color:'rgba(0,0,0,.06)'},beginAtZero:true}
+  }}
+});
+
+const agNR=agents.map(a=>data.filter(d=>d.agent.toLowerCase()===a.toLowerCase()&&d.status==="No Response").length);
+const agPend=agents.map(a=>data.filter(d=>d.agent.toLowerCase()===a.toLowerCase()&&d.status==="Pending").length);
+new Chart(document.getElementById('cStatus'),{
+  type:'bar',
+  data:{labels:agents,datasets:[
+    {label:'Completed',data:agDone,backgroundColor:'#1baf7a',borderRadius:4},
+    {label:'No response',data:agNR,backgroundColor:'#e34948',borderRadius:0},
+    {label:'Pending',data:agPend,backgroundColor:'#eda100',borderRadius:0},
+  ]},
+  options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',plugins:{legend:{display:false}},scales:{
+    x:{stacked:true,ticks:{font:{size:10},color:'#898781'},grid:{color:'rgba(0,0,0,.06)'}},
+    y:{stacked:true,ticks:{font:{size:10},color:'#898781'},grid:{display:false}}
+  }}
+});
+</script>
