@@ -1,7 +1,18 @@
 import { CheckCircle2, XCircle, Clock, Activity, Timer, ArrowUpRight, ArrowDownRight, Minus } from "lucide-react";
 
 function DeltaChip({ value, positiveGood = true, suffix = "%", testId }) {
-  if (value === null || value === undefined) return null;
+  // Render a neutral fallback chip when comparison delta is unavailable
+  if (value === null || value === undefined) {
+    return (
+      <span
+        data-testid={testId}
+        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md border border-zinc-800 bg-zinc-900 text-zinc-500 text-[10px] font-mono-data"
+      >
+        <Minus className="w-2.5 h-2.5" />
+        n/a
+      </span>
+    );
+  }
   const isZero = Math.abs(value) < 0.05;
   const isUp = value > 0;
   const good =
