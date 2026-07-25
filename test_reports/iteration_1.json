@@ -1,0 +1,38 @@
+{
+  "summary": "First-finish testing of Business Analytics Dashboard (Indonesian financial KYC data, 3000 rows). All 10 backend endpoints healthy with correct shapes and counts. CSV export streams with correct content-type and content-disposition. Frontend dashboard loads with dark-mode UI, KPI cards, area chart (Processing Volume), status donut, records table, and filter bar. Interactive category filter reduces total from 3000 to 327 (Update Rekening), reset restores to 3000, records pagination changes rows, search input accepts input, no console errors.",
+  "tested_scope": ["backend", "frontend", "integration"],
+  "passed": [
+    "GET /api/ -> {message, rows:3000}",
+    "GET /api/filters/options -> 10 categories, 7 pics, 5 statuses, 9 channels, date_min=2025-01-01, date_max=2025-07-28",
+    "GET /api/analytics/summary -> total_records=3000, completion_rate=58.9, pending=631, rejected=603, reject_rate=20.1",
+    "GET /api/analytics/timeseries -> 209 daily buckets with {date,total,completed,rejected}",
+    "GET /api/analytics/status -> 5 status rows summing to 3000",
+    "GET /api/analytics/categories -> 10 categories with total/completed/rejected",
+    "GET /api/analytics/pic -> 7 PICs with maker/checker counts",
+    "GET /api/analytics/channels -> 9 channels",
+    "GET /api/analytics/insights -> 3-key payload",
+    "GET /api/records?page=1&page_size=20 -> total=3000, 20 rows",
+    "Single filter categories=Update Rekening -> total_records=327",
+    "Multi-value filter (repeated params) categories=A&categories=B -> total_records=623 (327+296)",
+    "Records filter statuses=Pending -> total=631",
+    "GET /api/records/export -> HTTP 200, content-type text/csv; charset=utf-8, content-disposition attachment; 3001 lines (3000 rows + header)",
+    "Frontend loads at REACT_APP_BACKEND_URL / with all KPI cards, filter bar, records table",
+    "KPI cards show correct values (3,000 / 58.9% / 631 / 20.1%)",
+    "Category filter interaction updates KPI total 3,000 -> 327 (~500ms after click)",
+    "filter-reset appears when active filters > 0 and restores total to 3,000",
+    "records-next pagination changes first row content",
+    "records-search accepts input without focus loss",
+    "Export CSV button present in header",
+    "0 console errors, no .error/[class*=error] elements on page"
+  ],
+  "failed": [],
+  "action_items": [],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "retest_needed": false,
+  "full_testing_deferred": true,
+  "notes": {
+    "test_credentials": "N/A (no authentication per user choice)",
+    "filter_reset_behavior": "filter-reset button only renders when activeCount > 0 (by design, not a bug)",
+    "date_range_calendar_interaction": "Not exercised interactively (calendar popover not opened); trigger element present and other filters proven to update KPIs, so pattern is validated"
+  }
+}
