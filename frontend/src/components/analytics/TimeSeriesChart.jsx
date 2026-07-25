@@ -1,25 +1,54 @@
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 
-export default function TimeSeriesChart({ data }) {
+const GRAN_LABELS = { day: "Day", week: "Week", month: "Month" };
+
+export default function TimeSeriesChart({ data, granularity = "day", onGranularityChange }) {
   const total = data.reduce((sum, d) => sum + d.total, 0);
+  const tickFmt = (v) => {
+    if (!v) return "";
+    if (granularity === "month") return v.slice(0, 7);
+    return v.slice(5);
+  };
+
   return (
     <div
       data-testid="timeseries-chart"
       className="bg-zinc-900 border border-zinc-800 rounded-lg p-5 h-full"
     >
-      <div className="flex items-start justify-between mb-4">
+      <div className="flex items-start justify-between mb-4 flex-wrap gap-3">
         <div>
           <h3 className="font-heading text-base font-semibold text-zinc-100">Processing Volume</h3>
           <p className="font-mono-data text-[10px] uppercase tracking-[0.2em] text-zinc-500 mt-1">
-            Daily activity trend
+            {GRAN_LABELS[granularity]}ly activity trend
           </p>
         </div>
-        <div className="text-right">
-          <div className="font-mono-data text-2xl font-light text-zinc-100 tabular-nums">
-            {total.toLocaleString()}
+        <div className="flex items-center gap-2">
+          <div
+            className="inline-flex bg-zinc-950 border border-zinc-800 rounded-md p-0.5"
+            data-testid="granularity-toggle"
+          >
+            {["day", "week", "month"].map((g) => (
+              <button
+                key={g}
+                data-testid={`granularity-${g}`}
+                onClick={() => onGranularityChange?.(g)}
+                className={`px-2.5 py-1 rounded font-mono-data text-[10px] uppercase tracking-[0.15em] transition-colors ${
+                  granularity === g
+                    ? "bg-zinc-800 text-zinc-100"
+                    : "text-zinc-500 hover:text-zinc-300"
+                }`}
+              >
+                {g}
+              </button>
+            ))}
           </div>
-          <div className="font-mono-data text-[10px] uppercase tracking-[0.2em] text-zinc-500">
-            total actions
+          <div className="text-right pl-2">
+            <div className="font-mono-data text-xl font-light text-zinc-100 tabular-nums">
+              {total.toLocaleString()}
+            </div>
+            <div className="font-mono-data text-[10px] uppercase tracking-[0.2em] text-zinc-500">
+              total
+            </div>
           </div>
         </div>
       </div>
@@ -37,7 +66,7 @@ export default function TimeSeriesChart({ data }) {
               </linearGradient>
             </defs>
             <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
-            <XAxis dataKey="date" stroke="#71717a" tick={{ fontSize: 10 }} tickFormatter={(v) => v.slice(5)} />
+            <XAxis dataKey="date" stroke="#71717a" tick={{ fontSize: 10 }} tickFormatter={tickFmt} />
             <YAxis stroke="#71717a" tick={{ fontSize: 10 }} />
             <Tooltip
               contentStyle={{ background: "#18181b", border: "1px solid #3f3f46", borderRadius: 6 }}

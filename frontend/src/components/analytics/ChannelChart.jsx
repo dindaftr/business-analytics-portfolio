@@ -2,7 +2,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGri
 
 const PALETTE = ["#22D3EE", "#60A5FA", "#A78BFA", "#F472B6", "#34D399", "#FBBF24", "#FB7185", "#818CF8", "#2DD4BF", "#F59E0B"];
 
-export default function ChannelChart({ data }) {
+export default function ChannelChart({ data, onBarClick }) {
   return (
     <div
       data-testid="channel-chart"
@@ -11,7 +11,7 @@ export default function ChannelChart({ data }) {
       <div className="mb-4">
         <h3 className="font-heading text-base font-semibold text-zinc-100">Channel Mix</h3>
         <p className="font-mono-data text-[10px] uppercase tracking-[0.2em] text-zinc-500 mt-1">
-          Origin of update requests
+          Origin of update requests · click to drill-down
         </p>
       </div>
       <div className="h-80">
@@ -26,7 +26,12 @@ export default function ChannelChart({ data }) {
               itemStyle={{ fontSize: 12 }}
               cursor={{ fill: "#27272a80" }}
             />
-            <Bar dataKey="count" radius={[3, 3, 0, 0]}>
+            <Bar
+              dataKey="count"
+              radius={[3, 3, 0, 0]}
+              onClick={(entry) => entry && onBarClick?.(entry.channel)}
+              style={{ cursor: onBarClick ? "pointer" : "default" }}
+            >
               {data.map((_, i) => (
                 <Cell key={i} fill={PALETTE[i % PALETTE.length]} />
               ))}

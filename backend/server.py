@@ -2,7 +2,7 @@
 Business Analytics Dashboard Backend
 Serves aggregated analytics + filtered records over a static Excel dataset.
 """
-from fastapi import FastAPI, APIRouter, Query
+from fastapi import FastAPI, APIRouter, Query, UploadFile, File, HTTPException
 from fastapi.responses import StreamingResponse
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
@@ -77,6 +77,29 @@ def load_data() -> pd.DataFrame:
 
 
 DF: pd.DataFrame = load_data()
+
+REQUIRED_COLUMNS = {
+    "No.", "SID", "Email", "Nama Lengkap", "Kategori Perubahan",
+    "PIC Maker", "PIC Checker", "Channel",
+    "Tanggal Action S-Invest", "Tanggal Action SABO",
+    "Status Maker", "Status Checker", "Note",
+}
+
+
+def compute_sla(df: pd.DataFrame):
+    """Avg days between Tanggal Action S-Invest and Tanggal Proses Maker."""
+    if "Tanggal Proses Maker" not in df.columns:
+        return None
+    start = df["Tanggal Action S-Invest"]
+    end = df["Tanggal Proses Maker"]
+    valid = start.notna() & end.notna()
+    if not valid.any():
+        return None
+    diffs = (end[valid] - start[valid]).dt.total_seconds() / 86400.0
+    diffs = diffs[diffs >= 0]  # ignore negatives from dummy noise
+    if diffs.empty:
+        return None
+    return round(float(diffs.mean()), 1)
 
 # ------------------------------------------------------------------
 # App & Router -----------------------------------------------------
@@ -204,6 +227,7 @@ def analytics_summary(
     reject_rate = round(rejected / total * 100, 1) if total else 0.0
 
     unique_customers = int(d["SID"].dropna().nunique())
+    sla_days = compute_sla(d)
 
     return {
         "total_records": total,
@@ -213,6 +237,7 @@ def analytics_summary(
         "completion_rate": completion_rate,
         "reject_rate": reject_rate,
         "unique_customers": unique_customers,
+        "avg_sla_days": sla_days,
     }
 
 
@@ -232,6 +257,8 @@ def analytics_timeseries(
     d = d[d["Date"].notna()].copy()
     if granularity == "month":
         d["_bucket"] = d["Date"].dt.to_period("M").dt.to_timestamp()
+    elif granularity == "week":
+        d["_bucket"] = d["Date"].dt.to_period("W-MON").dt.start_time
     else:
         d["_bucket"] = d["Date"].dt.floor("D")
 
@@ -408,6 +435,63 @@ def export_csv(
         media_type="text/csv",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
+
+
+@api.post("/import")
+async def import_dataset(file: UploadFile = File(...)):
+    """Replace the in-memory dataset with an uploaded Excel/CSV file."""
+    global DF
+    filename = (file.filename or "").lower()
+    if not (filename.endswith(".xlsx") or filename.endswith(".xls") or filename.endswith(".csv")):
+        raise HTTPException(status_code=400, detail="File must be .xlsx, .xls, or .csv")
+
+    content = await file.read()
+    if len(content) > 20 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="File too large (max 20 MB)")
+
+    try:
+        if filename.endswith(".csv"):
+            new_df = pd.read_csv(io.BytesIO(content))
+        else:
+            new_df = pd.read_excel(io.BytesIO(content), sheet_name=0)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to parse file: {e}")
+
+    missing = REQUIRED_COLUMNS - set(new_df.columns)
+    if missing:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Missing required columns: {sorted(list(missing))}",
+        )
+
+    # Normalize using same pipeline as load_data
+    for col in ["Status Update S-Invest", "Status Update SABO", "Status Maker", "Status Checker"]:
+        if col in new_df.columns:
+            new_df[col] = new_df[col].map(normalize_status)
+    for col in ["Tanggal Action S-Invest", "Tanggal Action SABO",
+                "Tanggal Proses S-Invest", "Tanggal Proses SABO3", "Tanggal Proses Maker"]:
+        if col in new_df.columns:
+            new_df[col] = pd.to_datetime(new_df[col], errors="coerce")
+
+    new_df["FinalStatus"] = new_df["Status Checker"].fillna(new_df["Status Maker"]).fillna("Pending")
+    new_df["Date"] = new_df["Tanggal Action S-Invest"].fillna(new_df["Tanggal Action SABO"])
+    new_df["ChannelClean"] = new_df["Channel"].astype(str).str.split(",").str[0].str.strip()
+
+    # Persist the file so a backend restart keeps the new dataset
+    try:
+        DATA_PATH.parent.mkdir(parents=True, exist_ok=True)
+        with open(DATA_PATH, "wb") as f:
+            if filename.endswith(".csv"):
+                # convert to xlsx-compatible flow: also save as csv sibling; keep xlsx main
+                new_df.to_excel(DATA_PATH, index=False)
+            else:
+                f.write(content)
+    except Exception as e:
+        logger.warning(f"Could not persist uploaded file: {e}")
+
+    DF = new_df
+    logger.info(f"Imported new dataset: {len(DF)} rows from {file.filename}")
+    return {"ok": True, "filename": file.filename, "rows": int(len(DF))}
 
 
 app.include_router(api)

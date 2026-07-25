@@ -56,3 +56,26 @@
 .font-heading { font-family: "Manrope", ui-sans-serif, sans-serif; }
 .font-body { font-family: "IBM Plex Sans", ui-sans-serif, sans-serif; }
 .font-mono-data { font-family: "IBM Plex Mono", ui-monospace, monospace; }
+
+/* Print / Save-as-PDF styles */
+@media print {
+  html, body, .App {
+    background: #ffffff !important;
+    color: #18181b !important;
+  }
+  .grain-bg::before { display: none !important; }
+  header, .print\:hidden { display: none !important; }
+  main { padding: 0 !important; }
+  section, .bg-zinc-900 {
+    background: #ffffff !important;
+    border: 1px solid #d4d4d8 !important;
+    color: #18181b !important;
+    page-break-inside: avoid;
+  }
+  .text-zinc-100, .text-zinc-200, .text-zinc-300, .text-zinc-400 { color: #18181b !important; }
+  .text-zinc-500, .text-zinc-600 { color: #52525b !important; }
+  .border-zinc-800, .border-zinc-700 { border-color: #d4d4d8 !important; }
+  .recharts-cartesian-axis-tick-value { fill: #52525b !important; }
+  .recharts-cartesian-grid line { stroke: #e4e4e7 !important; }
+  a { text-decoration: none !important; }
+}

@@ -1,6 +1,6 @@
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from "recharts";
 
-export default function PicPerformance({ data }) {
+export default function PicPerformance({ data, onBarClick }) {
   return (
     <div
       data-testid="pic-performance"
@@ -10,7 +10,7 @@ export default function PicPerformance({ data }) {
         <div>
           <h3 className="font-heading text-base font-semibold text-zinc-100">PIC Workload</h3>
           <p className="font-mono-data text-[10px] uppercase tracking-[0.2em] text-zinc-500 mt-1">
-            Maker vs Checker task volume per person
+            Maker vs Checker · click to filter by PIC
           </p>
         </div>
         <div className="flex items-center gap-3 text-xs">
@@ -34,8 +34,16 @@ export default function PicPerformance({ data }) {
               itemStyle={{ fontSize: 12 }}
               cursor={{ fill: "#27272a80" }}
             />
-            <Bar dataKey="maker" stackId="a" fill="#2563EB" radius={[0, 0, 0, 0]} />
-            <Bar dataKey="checker" stackId="a" fill="#A78BFA" radius={[3, 3, 0, 0]} />
+            <Bar
+              dataKey="maker" stackId="a" fill="#2563EB" radius={[0, 0, 0, 0]}
+              onClick={(entry) => entry && onBarClick?.(entry.pic)}
+              style={{ cursor: onBarClick ? "pointer" : "default" }}
+            />
+            <Bar
+              dataKey="checker" stackId="a" fill="#A78BFA" radius={[3, 3, 0, 0]}
+              onClick={(entry) => entry && onBarClick?.(entry.pic)}
+              style={{ cursor: onBarClick ? "pointer" : "default" }}
+            />
           </BarChart>
         </ResponsiveContainer>
       </div>

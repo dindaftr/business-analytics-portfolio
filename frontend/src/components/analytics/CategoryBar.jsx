@@ -1,6 +1,6 @@
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell } from "recharts";
 
-export default function CategoryBar({ data }) {
+export default function CategoryBar({ data, onBarClick }) {
   return (
     <div
       data-testid="category-bar"
@@ -9,7 +9,7 @@ export default function CategoryBar({ data }) {
       <div className="mb-4">
         <h3 className="font-heading text-base font-semibold text-zinc-100">Change Categories</h3>
         <p className="font-mono-data text-[10px] uppercase tracking-[0.2em] text-zinc-500 mt-1">
-          Volume by "Kategori Perubahan"
+          Volume by "Kategori Perubahan" · click a bar to drill-down
         </p>
       </div>
       <div className="h-80">
@@ -30,7 +30,13 @@ export default function CategoryBar({ data }) {
               itemStyle={{ fontSize: 12 }}
               cursor={{ fill: "#27272a80" }}
             />
-            <Bar dataKey="total" fill="#2563EB" radius={[0, 3, 3, 0]}>
+            <Bar
+              dataKey="total"
+              fill="#2563EB"
+              radius={[0, 3, 3, 0]}
+              onClick={(entry) => entry && onBarClick?.(entry.category)}
+              style={{ cursor: onBarClick ? "pointer" : "default" }}
+            >
               {data.map((_, idx) => (
                 <Cell key={idx} fill={idx === 0 ? "#60A5FA" : "#2563EB"} />
               ))}

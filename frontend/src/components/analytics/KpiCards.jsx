@@ -1,4 +1,4 @@
-import { TrendingUp, CheckCircle2, XCircle, Users, Clock, Activity } from "lucide-react";
+import { CheckCircle2, XCircle, Clock, Activity, Timer } from "lucide-react";
 
 function Kpi({ label, value, sub, accent, icon: Icon, testId }) {
   return (
@@ -14,7 +14,7 @@ function Kpi({ label, value, sub, accent, icon: Icon, testId }) {
           <Icon className="w-4 h-4" />
         </div>
       </div>
-      <div className="font-mono-data text-3xl sm:text-4xl font-light text-zinc-100 tabular-nums">
+      <div className="font-mono-data text-2xl sm:text-3xl font-light text-zinc-100 tabular-nums">
         {value}
       </div>
       {sub && <div className="mt-2 text-xs text-zinc-500 font-body">{sub}</div>}
@@ -32,7 +32,7 @@ export default function KpiCards({ summary, loading }) {
   return (
     <section
       data-testid="kpi-grid"
-      className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"
+      className="grid grid-cols-2 lg:grid-cols-5 gap-4"
     >
       <Kpi
         label="Total Records"
@@ -65,6 +65,14 @@ export default function KpiCards({ summary, loading }) {
         icon={XCircle}
         accent="bg-rose-500/10 text-rose-400 border border-rose-500/20"
         testId="kpi-reject"
+      />
+      <Kpi
+        label="Avg SLA"
+        value={loading ? "…" : (s.avg_sla_days != null ? `${s.avg_sla_days}d` : "—")}
+        sub="Action → Maker processing"
+        icon={Timer}
+        accent="bg-purple-500/10 text-purple-400 border border-purple-500/20"
+        testId="kpi-sla"
       />
     </section>
   );

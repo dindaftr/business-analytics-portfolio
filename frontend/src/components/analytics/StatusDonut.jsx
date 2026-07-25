@@ -9,7 +9,7 @@ const COLORS = {
 };
 const DEFAULT = "#71717A";
 
-export default function StatusDonut({ data }) {
+export default function StatusDonut({ data, onSliceClick }) {
   const total = data.reduce((s, d) => s + d.count, 0);
   return (
     <div
@@ -19,7 +19,7 @@ export default function StatusDonut({ data }) {
       <div className="mb-4">
         <h3 className="font-heading text-base font-semibold text-zinc-100">Status Distribution</h3>
         <p className="font-mono-data text-[10px] uppercase tracking-[0.2em] text-zinc-500 mt-1">
-          Final checker outcome
+          Final checker outcome · click a slice to drill-down
         </p>
       </div>
       <div className="relative h-56">
@@ -34,6 +34,8 @@ export default function StatusDonut({ data }) {
               paddingAngle={2}
               stroke="#09090b"
               strokeWidth={2}
+              onClick={(entry) => entry && onSliceClick?.(entry.status)}
+              style={{ cursor: onSliceClick ? "pointer" : "default" }}
             >
               {data.map((d) => (
                 <Cell key={d.status} fill={COLORS[d.status] || DEFAULT} />
@@ -55,7 +57,12 @@ export default function StatusDonut({ data }) {
       </div>
       <div className="mt-4 space-y-1.5">
         {data.map((d) => (
-          <div key={d.status} className="flex items-center justify-between text-xs">
+          <button
+            key={d.status}
+            data-testid={`status-legend-${d.status}`}
+            onClick={() => onSliceClick?.(d.status)}
+            className="w-full flex items-center justify-between text-xs hover:bg-zinc-800/40 rounded px-1 py-0.5 transition-colors"
+          >
             <div className="flex items-center gap-2">
               <span
                 className="w-2 h-2 rounded-full"
@@ -69,7 +76,7 @@ export default function StatusDonut({ data }) {
                 {total ? `${((d.count / total) * 100).toFixed(1)}%` : "0%"}
               </span>
             </span>
-          </div>
+          </button>
         ))}
       </div>
     </div>
