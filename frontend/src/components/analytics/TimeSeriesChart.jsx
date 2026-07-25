@@ -1,6 +1,6 @@
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 
-const GRAN_LABELS = { day: "Day", week: "Week", month: "Month" };
+const GRAN_LABELS = { day: "Daily", week: "Weekly", month: "Monthly" };
 
 export default function TimeSeriesChart({ data, granularity = "day", onGranularityChange }) {
   const total = data.reduce((sum, d) => sum + d.total, 0);
@@ -19,7 +19,7 @@ export default function TimeSeriesChart({ data, granularity = "day", onGranulari
         <div>
           <h3 className="font-heading text-base font-semibold text-zinc-100">Processing Volume</h3>
           <p className="font-mono-data text-[10px] uppercase tracking-[0.2em] text-zinc-500 mt-1">
-            {GRAN_LABELS[granularity]}ly activity trend
+            {GRAN_LABELS[granularity]} activity trend
           </p>
         </div>
         <div className="flex items-center gap-2">
