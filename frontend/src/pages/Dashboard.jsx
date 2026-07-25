@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { useSearchParams } from "react-router-dom";
 import {
-  Download, FileBarChart, RefreshCw, Upload, Printer,
+  Download, FileBarChart, RefreshCw, Upload, Printer, GitCompare,
 } from "lucide-react";
 import FilterBar from "@/components/analytics/FilterBar";
 import KpiCards from "@/components/analytics/KpiCards";
@@ -14,10 +14,12 @@ import ChannelChart from "@/components/analytics/ChannelChart";
 import InsightsPanel from "@/components/analytics/InsightsPanel";
 import RecordsTable from "@/components/analytics/RecordsTable";
 import ImportDialog from "@/components/analytics/ImportDialog";
+import SavedViews from "@/components/analytics/SavedViews";
 import { Button } from "@/components/ui/button";
 import {
   fetchFilters, fetchSummary, fetchTimeseries, fetchStatus,
-  fetchCategories, fetchPic, fetchChannels, fetchInsights, exportCsvUrl,
+  fetchCategories, fetchPic, fetchChannels, fetchInsights,
+  fetchComparison, exportCsvUrl,
 } from "@/lib/api";
 
 const emptyFilters = {
@@ -52,11 +54,18 @@ function filtersToParams(f) {
   return out;
 }
 
+const COMPARE_MODES = [
+  { key: "", label: "Off" },
+  { key: "wow", label: "WoW" },
+  { key: "mom", label: "MoM" },
+];
+
 export default function Dashboard() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [filters, setFiltersState] = useState(() => filtersFromParams(searchParams));
   const [options, setOptions] = useState({ categories: [], pics: [], statuses: [], channels: [] });
   const [summary, setSummary] = useState(null);
+  const [comparison, setComparison] = useState(null);
   const [timeseries, setTimeseries] = useState([]);
   const [statusData, setStatusData] = useState([]);
   const [categoryData, setCategoryData] = useState([]);
@@ -66,15 +75,30 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [refreshTick, setRefreshTick] = useState(0);
   const [granularity, setGranularity] = useState(() => searchParams.get("g") || "day");
+  const [compareMode, setCompareMode] = useState(() => searchParams.get("c") || "");
   const [importOpen, setImportOpen] = useState(false);
 
-  // Filter setter that mirrors state into URL search params
+  const writeUrl = (nextFilters, nextGranularity, nextCompare) => {
+    const urlParams = filtersToParams(nextFilters);
+    if (nextGranularity && nextGranularity !== "day") urlParams.g = nextGranularity;
+    if (nextCompare) urlParams.c = nextCompare;
+    setSearchParams(urlParams, { replace: true });
+  };
+
   const setFilters = (next) => {
     const nextObj = typeof next === "function" ? next(filters) : next;
     setFiltersState(nextObj);
-    const urlParams = filtersToParams(nextObj);
-    if (granularity && granularity !== "day") urlParams.g = granularity;
-    setSearchParams(urlParams, { replace: true });
+    writeUrl(nextObj, granularity, compareMode);
+  };
+
+  const changeGranularity = (g) => {
+    setGranularity(g);
+    writeUrl(filters, g, compareMode);
+  };
+
+  const changeCompare = (c) => {
+    setCompareMode(c);
+    writeUrl(filters, granularity, c);
   };
 
   const toggleFilterValue = (key, value) => {
@@ -87,13 +111,11 @@ export default function Dashboard() {
     toast.success(`Filtered: ${value}`);
   };
 
-  // Sync granularity into URL
-  useEffect(() => {
-    const params = filtersToParams(filters);
-    if (granularity && granularity !== "day") params.g = granularity;
-    setSearchParams(params, { replace: true });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [granularity]);
+  const loadView = (view) => {
+    setFiltersState(view.filters);
+    if (view.granularity) setGranularity(view.granularity);
+    writeUrl(view.filters, view.granularity || "day", compareMode);
+  };
 
   const params = useMemo(() => ({
     start_date: filters.start_date || undefined,
@@ -137,6 +159,16 @@ export default function Dashboard() {
     return () => { cancelled = true; };
   }, [params, refreshTick, granularity]);
 
+  // Comparison fetch (separate so KPI + charts don't refetch when comparison toggles)
+  useEffect(() => {
+    let cancelled = false;
+    if (!compareMode) { setComparison(null); return; }
+    fetchComparison({ ...params, compare: compareMode })
+      .then((data) => !cancelled && setComparison(data))
+      .catch(() => !cancelled && setComparison(null));
+    return () => { cancelled = true; };
+  }, [params, compareMode, refreshTick]);
+
   const handleExport = () => {
     const url = exportCsvUrl(params);
     window.open(url, "_blank");
@@ -152,6 +184,12 @@ export default function Dashboard() {
 
   const onImportDone = ({ rows, filename }) => {
     toast.success(`Berhasil import ${rows.toLocaleString()} baris dari ${filename}`);
+    setImportOpen(false);
+    setRefreshTick((n) => n + 1);
+  };
+
+  const onRestoreDone = ({ rows, restored_from }) => {
+    toast.success(`Restored dari backup ${restored_from} (${rows.toLocaleString()} baris)`);
     setImportOpen(false);
     setRefreshTick((n) => n + 1);
   };
@@ -175,6 +213,31 @@ export default function Dashboard() {
             </div>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
+            <SavedViews
+              currentFilters={filters}
+              currentGranularity={granularity}
+              onLoad={loadView}
+            />
+            <div
+              className="inline-flex items-center bg-zinc-900 border border-zinc-800 rounded-md p-0.5"
+              data-testid="compare-toggle"
+            >
+              <GitCompare className="w-3.5 h-3.5 text-zinc-500 ml-2 mr-1" />
+              {COMPARE_MODES.map((m) => (
+                <button
+                  key={m.key || "off"}
+                  data-testid={`compare-${m.key || "off"}`}
+                  onClick={() => changeCompare(m.key)}
+                  className={`px-2.5 py-1 rounded font-mono-data text-[10px] uppercase tracking-[0.15em] transition-colors ${
+                    compareMode === m.key
+                      ? "bg-zinc-800 text-zinc-100"
+                      : "text-zinc-500 hover:text-zinc-300"
+                  }`}
+                >
+                  {m.label}
+                </button>
+              ))}
+            </div>
             <Button
               data-testid="btn-import"
               variant="outline"
@@ -212,6 +275,23 @@ export default function Dashboard() {
             </Button>
           </div>
         </div>
+        {compareMode && comparison?.current_period && (
+          <div
+            data-testid="compare-period-banner"
+            className="max-w-[1600px] mx-auto px-6 pb-3 -mt-1 flex items-center gap-3 flex-wrap"
+          >
+            <span className="font-mono-data text-[10px] uppercase tracking-[0.2em] text-zinc-500">
+              {compareMode.toUpperCase()} Comparison:
+            </span>
+            <span className="font-mono-data text-[11px] text-zinc-300">
+              {comparison.current_period.start} → {comparison.current_period.end}
+            </span>
+            <span className="font-mono-data text-[11px] text-zinc-600">vs</span>
+            <span className="font-mono-data text-[11px] text-zinc-500">
+              {comparison.previous_period.start} → {comparison.previous_period.end}
+            </span>
+          </div>
+        )}
       </header>
 
       <main className="max-w-[1600px] mx-auto px-6 py-6 space-y-6 print:px-0 print:py-2">
@@ -222,7 +302,7 @@ export default function Dashboard() {
           onReset={handleReset}
         />
 
-        <KpiCards summary={summary} loading={loading} />
+        <KpiCards summary={summary} loading={loading} comparison={comparison} />
 
         {/* Charts grid */}
         <section className="grid grid-cols-1 lg:grid-cols-3 gap-4" data-testid="charts-grid">
@@ -230,7 +310,7 @@ export default function Dashboard() {
             <TimeSeriesChart
               data={timeseries}
               granularity={granularity}
-              onGranularityChange={setGranularity}
+              onGranularityChange={changeGranularity}
             />
           </div>
           <div>
@@ -287,6 +367,7 @@ export default function Dashboard() {
         open={importOpen}
         onOpenChange={setImportOpen}
         onSuccess={onImportDone}
+        onRestore={onRestoreDone}
       />
     </div>
   );

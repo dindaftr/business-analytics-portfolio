@@ -12,6 +12,7 @@ import logging
 from pathlib import Path
 from typing import List, Optional
 from datetime import datetime, date
+from pydantic import BaseModel
 import pandas as pd
 import numpy as np
 
@@ -22,6 +23,8 @@ load_dotenv(ROOT_DIR / '.env')
 # Data loading (once at startup) -----------------------------------
 # ------------------------------------------------------------------
 DATA_PATH = ROOT_DIR / "data" / "data_dummy_3000.xlsx"
+BACKUP_DIR = ROOT_DIR / "data" / "backups"
+BACKUP_DIR.mkdir(parents=True, exist_ok=True)
 
 logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -477,12 +480,25 @@ async def import_dataset(file: UploadFile = File(...)):
     new_df["Date"] = new_df["Tanggal Action S-Invest"].fillna(new_df["Tanggal Action SABO"])
     new_df["ChannelClean"] = new_df["Channel"].astype(str).str.split(",").str[0].str.strip()
 
+    # Backup the existing dataset before overwriting
+    backup_meta = None
+    if DATA_PATH.exists():
+        try:
+            ts = datetime.now().strftime("%Y%m%d-%H%M%S")
+            backup_name = f"data_{ts}.xlsx"
+            backup_path = BACKUP_DIR / backup_name
+            import shutil
+            shutil.copy2(DATA_PATH, backup_path)
+            backup_meta = {"filename": backup_name, "size": backup_path.stat().st_size}
+            logger.info(f"Backup created at {backup_path}")
+        except Exception as e:
+            logger.warning(f"Could not create backup: {e}")
+
     # Persist the file so a backend restart keeps the new dataset
     try:
         DATA_PATH.parent.mkdir(parents=True, exist_ok=True)
         with open(DATA_PATH, "wb") as f:
             if filename.endswith(".csv"):
-                # convert to xlsx-compatible flow: also save as csv sibling; keep xlsx main
                 new_df.to_excel(DATA_PATH, index=False)
             else:
                 f.write(content)
@@ -491,7 +507,141 @@ async def import_dataset(file: UploadFile = File(...)):
 
     DF = new_df
     logger.info(f"Imported new dataset: {len(DF)} rows from {file.filename}")
-    return {"ok": True, "filename": file.filename, "rows": int(len(DF))}
+    return {
+        "ok": True,
+        "filename": file.filename,
+        "rows": int(len(DF)),
+        "backup": backup_meta,
+    }
+
+
+@api.get("/import/backups")
+def list_backups():
+    """List all timestamped backup files for rollback."""
+    items = []
+    for p in sorted(BACKUP_DIR.glob("data_*.xlsx"), reverse=True):
+        stat = p.stat()
+        items.append({
+            "filename": p.name,
+            "size": stat.st_size,
+            "created": datetime.fromtimestamp(stat.st_mtime).isoformat(),
+        })
+    return {"backups": items}
+
+
+class RestoreBackupPayload(BaseModel):
+    filename: str
+
+
+@api.post("/import/restore")
+def restore_backup(payload: RestoreBackupPayload):
+    """Restore a previously backed-up dataset by filename."""
+    global DF
+    if "/" in payload.filename or "\\" in payload.filename or ".." in payload.filename:
+        raise HTTPException(status_code=400, detail="Invalid backup filename")
+    src = BACKUP_DIR / payload.filename
+    if not src.exists():
+        raise HTTPException(status_code=404, detail=f"Backup not found: {payload.filename}")
+
+    # Backup current before restoring (safety)
+    try:
+        if DATA_PATH.exists():
+            ts = datetime.now().strftime("%Y%m%d-%H%M%S")
+            import shutil
+            shutil.copy2(DATA_PATH, BACKUP_DIR / f"data_prerestore_{ts}.xlsx")
+    except Exception as e:
+        logger.warning(f"Could not pre-restore backup: {e}")
+
+    try:
+        import shutil
+        shutil.copy2(src, DATA_PATH)
+        DF = load_data()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Restore failed: {e}")
+
+    logger.info(f"Restored dataset from {src}, rows={len(DF)}")
+    return {"ok": True, "restored_from": payload.filename, "rows": int(len(DF))}
+
+
+@api.get("/analytics/comparison")
+def analytics_comparison(
+    compare: str = "wow",
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    categories: Optional[List[str]] = Query(None),
+    pics: Optional[List[str]] = Query(None),
+    statuses: Optional[List[str]] = Query(None),
+    channels: Optional[List[str]] = Query(None),
+):
+    """Compare current period vs previous same-length period (WoW or MoM)."""
+    if compare not in ("wow", "mom"):
+        raise HTTPException(status_code=400, detail="compare must be 'wow' or 'mom'")
+
+    # Determine current period
+    if start_date and end_date:
+        cur_sd = pd.to_datetime(start_date)
+        cur_ed = pd.to_datetime(end_date)
+    else:
+        max_date = DF["Date"].max()
+        if pd.isna(max_date):
+            return {"mode": compare, "current": None, "previous": None}
+        span = 7 if compare == "wow" else 30
+        cur_ed = max_date
+        cur_sd = cur_ed - pd.Timedelta(days=span - 1)
+
+    duration_days = (cur_ed - cur_sd).days + 1
+    prev_ed = cur_sd - pd.Timedelta(days=1)
+    prev_sd = prev_ed - pd.Timedelta(days=duration_days - 1)
+
+    def _stats(df):
+        total = int(len(df))
+        completed = int(df["FinalStatus"].isin(["DONE", "Approve (OK)", "Sesuai"]).sum())
+        pending = int((df["FinalStatus"] == "Pending").sum())
+        rejected = int((df["FinalStatus"] == "Reject").sum())
+        return {
+            "total": total,
+            "completed": completed,
+            "pending": pending,
+            "rejected": rejected,
+            "completion_rate": round(completed / total * 100, 1) if total else 0.0,
+            "reject_rate": round(rejected / total * 100, 1) if total else 0.0,
+            "avg_sla_days": compute_sla(df),
+        }
+
+    cats = parse_multi(categories); p = parse_multi(pics)
+    s = parse_multi(statuses); ch = parse_multi(channels)
+
+    cur_df = apply_filters(DF, cur_sd.strftime("%Y-%m-%d"), cur_ed.strftime("%Y-%m-%d"), cats, p, s, ch)
+    prev_df = apply_filters(DF, prev_sd.strftime("%Y-%m-%d"), prev_ed.strftime("%Y-%m-%d"), cats, p, s, ch)
+
+    cur = _stats(cur_df); prev = _stats(prev_df)
+
+    def _pct(a, b):
+        if a is None or b is None or b == 0:
+            return None
+        return round((a - b) / b * 100, 1)
+
+    def _diff(a, b):
+        if a is None or b is None:
+            return None
+        return round(a - b, 1)
+
+    return {
+        "mode": compare,
+        "current_period": {"start": cur_sd.strftime("%Y-%m-%d"), "end": cur_ed.strftime("%Y-%m-%d")},
+        "previous_period": {"start": prev_sd.strftime("%Y-%m-%d"), "end": prev_ed.strftime("%Y-%m-%d")},
+        "current": cur,
+        "previous": prev,
+        "delta": {
+            "total_pct": _pct(cur["total"], prev["total"]),
+            "completed_pct": _pct(cur["completed"], prev["completed"]),
+            "pending_pct": _pct(cur["pending"], prev["pending"]),
+            "rejected_pct": _pct(cur["rejected"], prev["rejected"]),
+            "completion_rate_pp": _diff(cur["completion_rate"], prev["completion_rate"]),
+            "reject_rate_pp": _diff(cur["reject_rate"], prev["reject_rate"]),
+            "sla_days": _diff(cur["avg_sla_days"], prev["avg_sla_days"]),
+        },
+    }
 
 
 app.include_router(api)

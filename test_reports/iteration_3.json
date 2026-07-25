@@ -1,0 +1,30 @@
+{
+  "summary": "Iteration 3 tested end-to-end. Backend: 8/8 pytest cases pass covering /api/analytics/comparison (wow shape+7d window+delta keys; mom 30d; invalid 400; filters honored - Update Rekening reduces both current+previous totals), /api/import backup creation (payload.backup populated, filename data_YYYYMMDD-HHMMSS.xlsx, size>0), /api/import/backups listing (sorted newest-first with filename/size/created), /api/import/restore (valid filename restores, invalid returns 404, path traversal ../ and \\ and sub/ all return 400). Frontend: SavedViews dropdown opens; save button disabled with no filter/name; after applying categories=Update Rekening + typing name, save succeeds; localStorage 'kyc-analytics-saved-views' contains the view with id/name/filters/granularity/createdAt. Compare toggle: WoW shows compare-period-banner with two ranges; MoM banner text confirmed '2025-06-29 → 2025-07-28 vs 2025-05-30 → 2025-06-28'; toggling Off hides banner and removes kpi-total-delta from DOM. Import dialog: tab-import + tab-backups present; Backups tab lists 2 backup items with restore buttons; clicking backup-restore-<filename> triggered restore (toast 'Restored dari backup data_prerestore_20260725-123845.xlsx (3,000 baris)' visible).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "KpiCards DeltaChip", "issue": "For WoW, kpi-pending-delta and kpi-sla-delta are NOT rendered when the corresponding delta value is null. DeltaChip has `if (value === null) return null`. Backend returns null when previous==0 (division by zero in _pct) or when either period's avg_sla_days is None. With current dummy dataset in WoW window, previous.pending == 0 => pending_pct=null; and one of the periods has no valid SLA rows => sla_days=null. Spec says 'each KPI card gets a delta chip' - suggest rendering a neutral chip like 'n/a' or 'new' instead of hiding.", "selector": "kpi-pending-delta, kpi-sla-delta", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Recharts", "issues": ["Repeated 'width(-1) height(-1)' warnings on chart mount (carried over from iter2, non-blocking)"]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_iter3.py", "/app/test_reports/pytest/pytest_iter3.xml", "/app/backend/tests/backend_test.py"],
+  "action_items": [
+    "In KpiCards.DeltaChip, render a fallback chip (e.g., 'n/a' or 'new') when value is null instead of returning null, so all 5 KPI cards consistently show a delta indicator when compareMode is active (spec explicitly lists kpi-pending-delta and kpi-sla-delta as required)."
+  ],
+  "critical_code_review_comments": [
+    "server.py restore endpoint blocks '/','\\','..' in filename - good; but also permits any file matching data_*.xlsx (glob), meaning if a malicious upload placed a file into BACKUP_DIR through some other path (currently only shutil.copy2 does so from server code, so acceptable).",
+    "Comparison endpoint _pct returns None when previous == 0, causing UI chips to disappear entirely. Consider returning a sentinel like 'inf' or a flag so UI can render 'new' state.",
+    "SavedViews stores an ISO createdAt but never renders it; also no name-uniqueness check (duplicate view names allowed). Minor UX.",
+    "ImportDialog useEffect calls loadBackups() every time dialog opens; fine but no debounce needed given small list.",
+    "Global mutable DF persists across restore/import; not thread-safe (flagged prior iterations)."
+  ],
+  "updated_files": ["/app/backend/tests/test_iter3.py"],
+  "success_rate": {"backend": "100% (8/8)", "frontend": "~92% (1 medium UI gap on hidden delta chips)"},
+  "seed_data_creation": "Uploaded /app/backend/data/data_dummy_3000.xlsx via /api/import to generate backup entries; multiple data_YYYYMMDD-HHMMSS.xlsx and one data_prerestore_YYYYMMDD-HHMMSS.xlsx exist in /app/backend/data/backups/.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Iter3 tests at /app/backend/tests/test_iter3.py. LS key for saved views is 'kyc-analytics-saved-views'. Compare endpoint returns null delta_pct when previous period value is 0; UI hides chip in that case. For WoW window on dummy dataset (max Date ~2025-07-28), previous week has 0 pending and null SLA, so kpi-pending-delta + kpi-sla-delta are absent from DOM. For MoM the wider 30-day window has non-zero values so more chips appear. Backup filenames also include data_prerestore_*.xlsx created by the restore endpoint (safety backup before restore)."
+}

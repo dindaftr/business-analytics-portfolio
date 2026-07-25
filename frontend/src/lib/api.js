@@ -77,6 +77,22 @@ export async function fetchRecords(params) {
   return data;
 }
 
+export async function fetchComparison(params) {
+  const qs = serializeParams(params);
+  const { data } = await http.get(`/analytics/comparison?${qs}`);
+  return data;
+}
+
+export async function fetchBackups() {
+  const { data } = await http.get("/import/backups");
+  return data;
+}
+
+export async function restoreBackup(filename) {
+  const { data } = await http.post("/import/restore", { filename });
+  return data;
+}
+
 export function exportCsvUrl(params) {
   const qs = serializeParams(params);
   return `${API}/records/export?${qs}`;
