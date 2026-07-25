@@ -1,0 +1,105 @@
+{
+  "theme": "dark",
+  "app_type": "dashboard",
+  "archetype": "ARCHETYPE 4: SWISS & HIGH-CONTRAST (Modified for Dark Mode)",
+  "typography": {
+    "fonts": {
+      "headings": "Manrope",
+      "body": "IBM Plex Sans",
+      "monospace_data": "IBM Plex Mono"
+    },
+    "hierarchy": {
+      "h1": "text-2xl sm:text-3xl tracking-tight font-medium text-zinc-100",
+      "h2": "text-xl sm:text-2xl tracking-tight font-medium text-zinc-100",
+      "h3": "text-lg font-semibold text-zinc-200",
+      "body": "text-sm text-zinc-400",
+      "labels": "text-xs tracking-[0.2em] uppercase text-zinc-500 font-semibold",
+      "kpi_value": "text-3xl sm:text-4xl font-light tracking-tight text-zinc-100 font-mono"
+    },
+    "instructions": "Use Manrope for clean, professional headings. Use IBM Plex Mono for KPI numbers, tabular data, and IDs to maintain horizontal alignment. Never use Inter for headings."
+  },
+  "colors": {
+    "background": "bg-zinc-950",
+    "surface": "bg-zinc-900",
+    "surface_secondary": "bg-zinc-800",
+    "border": "border-zinc-800",
+    "border_hover": "border-zinc-700",
+    "text_primary": "text-zinc-100",
+    "text_secondary": "text-zinc-400",
+    "accent_primary": "bg-blue-600 text-white hover:bg-blue-500",
+    "status": {
+      "DONE": "text-emerald-400 bg-emerald-400/10 border border-emerald-400/20",
+      "Approve_OK": "text-blue-400 bg-blue-400/10 border border-blue-400/20",
+      "Pending": "text-amber-400 bg-amber-400/10 border border-amber-400/20",
+      "Reject": "text-rose-400 bg-rose-400/10 border border-rose-400/20"
+    },
+    "chart_colors": {
+      "blue": "#2563EB",
+      "emerald": "#34D399",
+      "amber": "#FBBF24",
+      "rose": "#FB7185",
+      "purple": "#A78BFA",
+      "cyan": "#22D3EE",
+      "zinc": "#71717A"
+    },
+    "instructions": "Maintain high contrast. Do not use teal green/blue. Rely on Zinc scale for neutrals. Ensure text over surfaces meets 4.5:1 contrast."
+  },
+  "surface_strategies": {
+    "cards": "Use 'Grid Borders' or 'Technical Look'. Flat backgrounds (bg-zinc-900), strict 1px solid borders (border-zinc-800). No drop shadows in dark mode. Radius should be max 8px (rounded-lg).",
+    "hover_states": "Slightly lighten border (border-zinc-700) and background (bg-zinc-800/50).",
+    "headers": "If sticky, use Solid Background (bg-zinc-950) with a hard bottom border (border-zinc-800). NEVER fully transparent."
+  },
+  "spacing_and_layout": {
+    "grid_system": "The 'Bento' Grid Protocol - Mode B (High Density Grid). Base grid: grid-cols-1 md:grid-cols-4. Gap strategy: Tight (gap-4 or gap-6).",
+    "padding": "Cards need internal padding (p-4 or p-6). Avoid text collision with borders.",
+    "alignment": "Mobile-first. Left-align text and labels. Right-align numerical data in tables. Use optical alignment."
+  },
+  "components": {
+    "kpi_cards": "Top row. 4 columns. Minimalist: Title (label), Value (mono), and a subtle sparkline or trend indicator.",
+    "charts": {
+      "library": "Recharts",
+      "time_series": "AreaChart for daily/monthly processing volume. Use gradient fill with 0 opacity at bottom.",
+      "status_distribution": "DonutChart (PieChart with innerRadius) for Status. Use status colors.",
+      "category_distribution": "BarChart for 'Kategori Perubahan'. Horizontal orientation if labels are long.",
+      "pic_performance": "Stacked BarChart for PIC Maker & Checker performance (workload/completion).",
+      "channel_distribution": "RadarChart or BarChart for ROBO, SBN, TP, BL, UMROH."
+    },
+    "filters": "Top filter bar below header: Date Range Picker (calendar), Category Multi-select, PIC Dropdown, Status Filter. Use Shadcn UI components.",
+    "data_table": "Recent Activity table. Pagination, search input, and 'Export CSV' button. Sticky header. Dense padding (py-2 px-3).",
+    "insights_panel": "Side or bottom panel emphasizing reject reasons (e.g., 'BELUM UPDATE REKENING', 'DATA NASABAH NOT FOUND'). Use rose/red accent for critical insights.",
+    "general": "Use Shadcn components for complex interactions but strip Vercel look via Tailwind."
+  },
+  "motion_and_interactions": {
+    "transitions": "Add transitions specifically to transform, opacity, colors. Example: 'transition-colors duration-200'.",
+    "hover": "Clear hover states for table rows and buttons.",
+    "rules": "Disable animations for prefers-reduced-motion. DO NOT use 'transition: all'."
+  },
+  "accessibility_and_testing": {
+    "testing_attributes": "All interactive and key informational elements MUST include a 'data-testid' attribute (e.g., data-testid='filter-status-dropdown', data-testid='export-csv-button').",
+    "focus": "Focus states must have high contrast: 'focus:ring-2 focus:ring-blue-500 focus:outline-none'."
+  },
+  "images_and_assets": {
+    "icons": "Use @phosphor-icons/react. They provide a dense, technical feel suitable for dashboards.",
+    "urls": [
+      {
+        "category": "decorative",
+        "url": "https://images.unsplash.com/photo-1687197180710-b2b9484a3c5f",
+        "description": "Subtle abstract dark blue waves. Can be used at 5% opacity for a premium login background if needed. Otherwise, keep dashboard solid dark."
+      }
+    ]
+  },
+  "universal_guidelines_for_main_agent": [
+    "You tend to converge toward generic, 'on distribution' outputs. In frontend design, this creates what users call the 'AI slop' aesthetic. Avoid this: make creative, distinctive frontends that surprise and delight.",
+    "Dark colors look good when used independently without gradients. DO NOT use dark colors as gradients.",
+    "Don't make generic centered layouts, simplistic gradients, and uniform styling.",
+    "Use 1px solid borders and flat surfaces for this dashboard. Do not use soft drop shadows.",
+    "NEVER apply universal transition (transition: all). It breaks transforms. Target specific properties.",
+    "NEVER center align the app container (.App { text-align: center; }).",
+    "Use modern pill-shaped or sharp button styles with interaction animations.",
+    "NEVER use AI assistant Emojis like 🤖🧠💭 for icons.",
+    "All interactive elements MUST include data-testid.",
+    "Use sonner for toast notifications.",
+    "Use Shadcn calendar for date pickers, dropdown-menu for selects.",
+    "Ensure the dataset (3000 rows dummy data) is processed efficiently, maybe paginated locally."
+  ]
+}
